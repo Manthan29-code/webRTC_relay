@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Relay — direct file transfer</title>
+<link rel="stylesheet" href="css/style.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+<!-- QR generation (sender) and QR scanning (receiver). Loaded from CDN
+     since they run in the visitor's own browser, not on our server. -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wordmark">
+    <span class="wordmark-node"></span>
+    <span>relay</span>
+  </div>
+  <p class="site-tagline">Peer-to-peer file transfer. No upload, no size limit, no trace left on a server.</p>
+</header>
+
+<main class="card">
+
+  <nav class="tabs" role="tablist">
+    <button id="tab-send" class="tab is-active" role="tab" aria-selected="true">Send</button>
+    <button id="tab-receive" class="tab" role="tab" aria-selected="false">Receive</button>
+  </nav>
+
+  <!-- ===================== SEND PANEL ===================== -->
+  <section id="panel-send" class="panel is-active">
+
+    <div id="dropzone" class="dropzone" tabindex="0">
+      <p class="dropzone-label">Drop a file here, or click to choose one</p>
+      <p id="send-file-info" class="file-info"></p>
+      <input id="file-input" type="file" hidden />
+    </div>
+
+    <div id="send-link-visual" class="link-visual" data-state="idle" aria-hidden="true">
+      <span class="link-node"></span>
+      <span class="link-line"></span>
+      <span class="link-node"></span>
+    </div>
+
+    <div id="code-box" class="code-box" hidden>
+      <p class="code-eyebrow">Share this code</p>
+      <p id="code-text" class="code-text"></p>
+      <canvas id="qr-canvas" class="qr-canvas"></canvas>
+      <p class="code-hint">Or let the receiver scan the QR code above</p>
+    </div>
+
+    <p id="send-status" class="status-line"></p>
+
+    <div id="send-progress" class="progress" hidden>
+      <div class="progress-track"><div id="send-progress-bar" class="progress-bar"></div></div>
+      <p id="send-progress-label" class="progress-label"></p>
+    </div>
+
+  </section>
+
+  <!-- =================== RECEIVE PANEL ==================== -->
+  <section id="panel-receive" class="panel">
+
+    <nav class="subtabs" role="tablist">
+      <button id="subtab-scan" class="subtab is-active" role="tab">Scan QR</button>
+      <button id="subtab-type" class="subtab" role="tab">Enter code</button>
+    </nav>
+
+    <div id="scan-pane" class="subpane is-active">
+      <div class="camera-frame">
+        <video id="qr-video" playsinline muted></video>
+        <canvas id="qr-scan-canvas" hidden></canvas>
+      </div>
+      <button id="start-scan-btn" class="btn btn-primary">Start camera</button>
+    </div>
+
+    <div id="type-pane" class="subpane">
+      <label class="field-label" for="code-input">6-character code</label>
+      <input id="code-input" class="code-input" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="KP34EE" />
+      <button id="connect-btn" class="btn btn-primary" disabled>Connect</button>
+    </div>
+
+    <div id="receive-link-visual" class="link-visual" data-state="idle" aria-hidden="true">
+      <span class="link-node"></span>
+      <span class="link-line"></span>
+      <span class="link-node"></span>
+    </div>
+
+    <p id="receive-status" class="status-line"></p>
+
+    <p id="receive-file-info" class="file-info"></p>
+    <button id="save-as-btn" class="btn btn-accent" hidden></button>
+
+    <div id="receive-progress" class="progress" hidden>
+      <div class="progress-track"><div id="receive-progress-bar" class="progress-bar"></div></div>
+      <p id="receive-progress-label" class="progress-label"></p>
+    </div>
+
+    <div id="receive-done" class="receive-done" hidden>
+      <p>File received.</p>
+      <a id="download-link" class="btn btn-primary" hidden download>Save file</a>
+    </div>
+
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p>Files travel directly between browsers over WebRTC. This server only exchanges the connection handshake — never your file.</p>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
