@@ -52,7 +52,7 @@ graph TB
     end
 
     subgraph STUN["🌐 Google Public STUN Servers"]
-        StunSrv["STUN (stun.l.google.com:19302)<br/>NAT / Public IP Discovery"]
+        StunSrv["STUN: stun.l.google.com:19302<br/>NAT & Public IP Discovery"]
     end
 
     subgraph RECEIVER["📱 Receiver Browser (Peer B)"]
@@ -62,15 +62,15 @@ graph TB
     end
 
     %% Signaling flow
-    Signaling_A <== "WebSocket (Room creation, SDP Offer/Answer, ICE)" ==> WSS
-    WSS <== "WebSocket (Join room, SDP Offer/Answer, ICE)" ==> Signaling_B
+    Signaling_A <-->|WebSocket: Room, SDP, ICE| WSS
+    WSS <-->|WebSocket: Join, SDP, ICE| Signaling_B
 
     %% STUN flow
-    RTC_A -. "1. Discover Public IP & Port" .-> StunSrv
-    RTC_B -. "1. Discover Public IP & Port" .-> StunSrv
+    RTC_A -.->|1. Discover Public IP & Port| StunSrv
+    RTC_B -.->|1. Discover Public IP & Port| StunSrv
 
     %% Direct P2P flow
-    RTC_A <=== "2. Direct Encrypted P2P DataChannel (DTLS / SCTP)<br/>[64 KB File Chunks Streamed Directly]" ===> RTC_B
+    RTC_A <==>|2. Direct Encrypted P2P DataChannel: DTLS & SCTP<br/>64 KB Chunks Streamed Directly| RTC_B
 
     %% Internal module links
     FileSelect --> RTC_A
