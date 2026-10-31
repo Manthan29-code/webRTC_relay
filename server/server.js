@@ -25,6 +25,11 @@ const MIME_TYPES = {
 // never passes through it -- that happens peer-to-peer over WebRTC.
 const httpServer = http.createServer((req, res) => {
   let reqPath = decodeURIComponent(req.url.split('?')[0]);
+  if (reqPath === '/health') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('OK');
+  }
+
   if (reqPath === '/') reqPath = '/index.html';
 
   const filePath = path.normalize(path.join(CLIENT_DIR, reqPath));
