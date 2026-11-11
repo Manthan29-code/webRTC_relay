@@ -6,11 +6,11 @@
 <title>Relay — direct file transfer</title>
 <link rel="stylesheet" href="css/style.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
-<!-- QR generation (sender) and QR scanning (receiver). Loaded from CDN
-     since they run in the visitor's own browser, not on our server. -->
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<!-- First-party vendor modules (served locally from server/node_modules) -->
+<script src="/vendor/qrcode.min.js" defer></script>
+<script src="/vendor/jsQR.js" defer></script>
+<script src="/vendor/jszip.min.js" defer></script>
 </head>
 <body>
 
@@ -19,7 +19,7 @@
     <span class="wordmark-node"></span>
     <span>relay</span>
   </div>
-  <p class="site-tagline">Peer-to-peer file transfer. No upload, no size limit, no trace left on a server.</p>
+  <p class="site-tagline">Peer-to-peer file & folder transfer. Direct between devices with zero cloud storage.</p>
 </header>
 
 <main class="card">
@@ -33,9 +33,24 @@
   <section id="panel-send" class="panel is-active">
 
     <div id="dropzone" class="dropzone" tabindex="0">
-      <p class="dropzone-label">Drop a file here, or click to choose one</p>
+      <div class="dropzone-icon">📁</div>
+      <p class="dropzone-label">Drop files or folders here</p>
       <p id="send-file-info" class="file-info"></p>
-      <input id="file-input" type="file" hidden />
+      <input id="file-input" type="file" multiple hidden />
+      <input id="folder-input" type="file" webkitdirectory directory hidden />
+    </div>
+
+    <div class="dropzone-actions">
+      <button id="btn-pick-files" type="button" class="btn-subtle">Choose Files</button>
+      <button id="btn-pick-folder" type="button" class="btn-subtle">Choose Folder</button>
+    </div>
+
+    <!-- Staged Files & Folder Tree -->
+    <div id="send-staging" class="staging-box" hidden>
+      <div class="staging-header">
+        <span>Staged Items</span>
+      </div>
+      <div id="send-file-tree" class="file-tree-container"></div>
     </div>
 
     <div id="send-link-visual" class="link-visual" data-state="idle" aria-hidden="true">
@@ -47,6 +62,12 @@
     <div id="code-box" class="code-box" hidden>
       <p class="code-eyebrow">Share this code</p>
       <p id="code-text" class="code-text"></p>
+
+      <div id="share-link-wrapper" class="share-link-wrapper" hidden>
+        <input id="share-link-input" class="share-link-input" type="text" readonly />
+        <button id="copy-link-btn" type="button" class="btn btn-sm btn-accent">Copy Link</button>
+      </div>
+
       <canvas id="qr-canvas" class="qr-canvas"></canvas>
       <p class="code-hint">Or let the receiver scan the QR code above</p>
     </div>
@@ -54,8 +75,13 @@
     <p id="send-status" class="status-line"></p>
 
     <div id="send-progress" class="progress" hidden>
+      <p id="send-current-file-label" class="current-file-label"></p>
       <div class="progress-track"><div id="send-progress-bar" class="progress-bar"></div></div>
       <p id="send-progress-label" class="progress-label"></p>
+    </div>
+
+    <div id="send-done" class="done-box" hidden>
+      <button id="btn-new-send" type="button" class="btn btn-primary" hidden>Start New Transfer</button>
     </div>
 
   </section>
@@ -90,17 +116,35 @@
 
     <p id="receive-status" class="status-line"></p>
 
-    <p id="receive-file-info" class="file-info"></p>
-    <button id="save-as-btn" class="btn btn-accent" hidden></button>
+    <!-- Manifest Selection Box with Folder and File Checkboxes -->
+    <div id="receive-manifest-box" class="manifest-box" hidden>
+      <div class="manifest-header">
+        <span id="receive-manifest-summary" class="manifest-title">Select files to receive</span>
+        <div class="manifest-actions">
+          <button id="btn-select-all" type="button" class="btn-link">Select all</button>
+          <span class="divider">•</span>
+          <button id="btn-deselect-all" type="button" class="btn-link">None</button>
+        </div>
+      </div>
 
+      <div id="receive-file-tree" class="file-tree-container"></div>
+
+      <p id="receive-method-note" class="method-note"></p>
+      <button id="receive-confirm-btn" type="button" class="btn btn-accent">Download Selected</button>
+    </div>
+
+    <!-- Live Progress -->
     <div id="receive-progress" class="progress" hidden>
+      <p id="receive-current-file-label" class="current-file-label"></p>
       <div class="progress-track"><div id="receive-progress-bar" class="progress-bar"></div></div>
       <p id="receive-progress-label" class="progress-label"></p>
     </div>
 
-    <div id="receive-done" class="receive-done" hidden>
-      <p>File received.</p>
-      <a id="download-link" class="btn btn-primary" hidden download>Save file</a>
+    <!-- Done Box -->
+    <div id="receive-done" class="done-box" hidden>
+      <p id="receive-done-message" class="done-message"></p>
+      <a id="download-link" class="btn btn-primary" hidden download>Download ZIP Archive</a>
+      <button id="btn-new-receive" type="button" class="btn btn-subtle" style="margin-top: 0.8rem;" hidden>Receive More Files</button>
     </div>
 
   </section>
@@ -108,7 +152,7 @@
 </main>
 
 <footer class="site-footer">
-  <p>Files travel directly between browsers over WebRTC. This server only exchanges the connection handshake — never your file.</p>
+  <p>Files travel directly between browsers over WebRTC. The signaling server never touches your files or directory contents.</p>
 </footer>
 
 <script type="module" src="js/app.js"></script>

@@ -52,7 +52,7 @@ export class PeerConnection {
 
   _wireChannel(channel) {
     channel.binaryType = 'arraybuffer';
-    channel.addEventListener('open', () => this.onChannelOpen?.());
+    channel.addEventListener('open', () => this.onChannelOpen?.(channel));
     channel.addEventListener('close', () => this.onChannelClose?.());
     channel.addEventListener('message', (event) => this.onMessage?.(event.data));
   }

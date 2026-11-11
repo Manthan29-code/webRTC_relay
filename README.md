@@ -1,34 +1,39 @@
-# ⚡ Relay — WebRTC Peer-to-Peer File Transfer
+# ⚡ Relay — WebRTC Peer-to-Peer File & Folder Transfer
 
-An ephemeral, browser-to-browser direct file sharing platform built with WebRTC. Files stream directly between peers with end-to-end encryption, requiring zero uploads, imposing no server storage limits, and leaving zero footprint on intermediary servers.
+An ephemeral, browser-to-browser direct file sharing platform built with WebRTC. Files and nested folders stream directly between peers with end-to-end encryption, requiring zero uploads, imposing no server storage limits, and leaving zero footprint on intermediary servers.
 
 ---
 
 ## 📌 1. What is this Project?
 
-**Relay** is a web-based, zero-knowledge Peer-to-Peer (P2P) file transfer tool powered by native **WebRTC `RTCDataChannel`** and modern browser streaming APIs. 
+**Relay** is a web-based, zero-knowledge Peer-to-Peer (P2P) file and folder transfer tool powered by native **WebRTC `RTCDataChannel`** and modern browser streaming APIs. 
 
-Traditional file-sharing tools force you to upload an entire file to a cloud server (like Google Drive, WeTransfer, or Dropbox) before generating a download link. Relay eliminates the intermediary cloud server entirely: files stream directly from the sender's disk to the receiver's disk through an encrypted direct channel.
+Traditional file-sharing tools force you to upload entire files to a cloud server (like Google Drive, WeTransfer, or Dropbox) before generating a download link. Relay eliminates the intermediary cloud server entirely: files and nested directory trees stream directly from the sender's disk to the receiver's disk through an encrypted direct channel.
 
 ---
 
 ## 🎯 2. Why Use It?
 
 * **🔒 Absolute Privacy & Zero Trace:** Your files never touch a server, even temporarily. The central Node.js server only acts as a temporary "handshake broker" to exchange network addresses (SDP/ICE) and never sees file names, contents, or metadata.
-* **📦 No File Size Limits:** Because files stream directly to disk without consuming intermediate RAM on Chromium browsers, you can send 1 GB, 50 GB, or 100 GB files without browser tab crashes.
-* **⚡ Blazing Fast Speeds:** When both devices are on the same local network (Wi-Fi or LAN), transfers achieve raw local network speeds without consuming internet bandwidth.
+* **📁 Multi-File & Nested Folder Support:** Drag-and-drop entire folders or select batches of files. The folder hierarchy and subfolder structures are preserved automatically.
+* **☑️ Receiver Selective Sync:** Receiver previews the staged folder/file tree with folder-level checkboxes (with tri-state indeterminate support) and individual file checkboxes, downloading only what they want.
+* **📦 Direct-to-Disk & Universal ZIP Fallback:** On Chromium desktop, streams directly into chosen folders via `showDirectoryPicker()`. On Safari, Firefox, iOS, and Android, bundles files client-side into a single `.zip` file for an effortless 1-click download.
+* **🔋 Screen Wake Lock API:** Prevents mobile devices and laptops from sleeping mid-transfer (`navigator.wakeLock`).
+* **🔗 Shareable Direct Links (`#CODE`):** One-click copyable URL (`relay.app/#KP34EE`) that automatically connects the receiver without manual typing.
+* **📱 Instant Pairing via QR or 6-Char Code:** No accounts, no logins, no phone numbers. Share a 6-character code, copy a link, or scan a dynamic QR code.
+* **⚡ Blazing Fast Speeds:** When devices are on the same local network (Wi-Fi or LAN), transfers achieve raw local network speeds without consuming internet bandwidth.
 * **🛡️ End-to-End Encryption (E2EE):** All WebRTC DataChannels are cryptographically protected out-of-the-box using **DTLS 1.2/1.3** and **SCTP**.
-* **📱 Instant Pairing via QR or 6-Char Code:** No accounts, no logins, no phone numbers. Just share a 6-character code or scan a QR code with your mobile camera.
 
 ---
 
 ## ⚙️ 3. What Does It Do?
 
-1. **Ephemeral Room Generation:** Generates crypto-safe, collision-free 6-character room codes with 10-minute auto-expiry.
-2. **Integrated QR Code Generation & Scanning:** Generates dynamic QR codes in-browser (using `qrcode`) and scans via the receiver's camera (using `jsQR` with `getUserMedia`).
-3. **Smart Backpressure Flow Control:** Streams files in 64 KiB chunks with high (8 MB) and low (1 MB) watermark buffer monitoring (`bufferedAmountLowThreshold`) to prevent memory leaks on fast senders with slow receivers.
-4. **Direct-to-Disk Streaming (Chromium):** Uses the **File System Access API** (`showSaveFilePicker` + `FileSystemWritableFileStream`) to write incoming bytes straight to disk, keeping memory consumption flat (~10–20 MB).
-5. **Universal Fallback (Safari / Firefox):** Gracefully falls back to in-memory chunk buffering and Blob URL generation for browsers without the File System Access API.
+1. **Recursive Folder Ingestion:** Uses `webkitGetAsEntry()` batch readers and directory inputs to traverse arbitrary folder and subfolder depths on the sender.
+2. **Two-Phase Manifest Protocol:** Sender shares the file inventory (`manifest`), and the receiver sends back an acknowledgement (`manifest-ack`) selecting exact files to download.
+3. **Smart Backpressure Flow Control:** Streams files in 64 KiB chunks with high (8 MB) and low (1 MB) watermark buffer monitoring (`bufferedAmountLowThreshold`) to prevent memory spikes.
+4. **Direct-to-Disk Streaming (Chromium):** Uses the **File System Access API** (`showDirectoryPicker` + `FileSystemWritableFileStream`) to write incoming bytes straight to disk, keeping memory consumption flat (~10–20 MB).
+5. **Universal Fallback (Safari / Firefox / Mobile):** Assembles incoming chunks into an in-memory or streamed `.zip` archive via `JSZip`, triggering a single unified download.
+6. **Reactive Transfer UI & Zero-Reload State Management:** Provides per-file progress badges (`Pending`, `Downloading...`, `Received ✅`), overall byte counters, and a clean "Start New Transfer" state reset that requires no page refresh.
 
 ---
 
@@ -39,9 +44,10 @@ The architecture separates the **Control Plane (Signaling)** from the **Data Pla
 ```mermaid
 graph TB
     subgraph SENDER["🖥️ Sender Browser (Peer A)"]
-        FileSelect["File Reader (File.slice)"]
+        FileSelect["Recursive File & Folder Reader<br/>(File.slice + webkitGetAsEntry)"]
         RTC_A["RTCPeerConnection (DataChannel)"]
         Signaling_A["Signaling Client (WebSocket)"]
+        WakeLock_A["Screen Wake Lock API"]
     end
 
     subgraph SERVER["☁️ Node.js Signaling & Static Server"]
@@ -58,7 +64,9 @@ graph TB
     subgraph RECEIVER["📱 Receiver Browser (Peer B)"]
         Signaling_B["Signaling Client (WebSocket)"]
         RTC_B["RTCPeerConnection (DataChannel)"]
-        DiskWriter["File System Access API / Blob Storage"]
+        FileTree["Selective Sync Checklist<br/>(Folder & File Checkboxes)"]
+        DiskWriter["File System Access API (Chromium)<br/>or JSZip Bundle (Safari/Mobile)"]
+        WakeLock_B["Screen Wake Lock API"]
     end
 
     %% Signaling flow
@@ -70,26 +78,25 @@ graph TB
     RTC_B -.->|1. Discover Public IP & Port| StunSrv
 
     %% Direct P2P flow
-    RTC_A <==>|2. Direct Encrypted P2P DataChannel: DTLS & SCTP<br/>64 KB Chunks Streamed Directly| RTC_B
+    RTC_A <==>|2. Direct Encrypted P2P DataChannel: DTLS & SCTP<br/>Manifest Exchange + 64 KB Chunk Streaming| RTC_B
 
     %% Internal module links
     FileSelect --> RTC_A
-    RTC_B --> DiskWriter
+    RTC_B --> FileTree
+    FileTree --> DiskWriter
 
     classDef control fill:#1d2027,stroke:#ff9d4d,stroke-width:2px,color:#eceae4;
     classDef data fill:#15171c,stroke:#5eead4,stroke-width:2px,color:#eceae4;
     classDef server fill:#262a33,stroke:#8b8f99,stroke-width:1px,color:#eceae4;
 
     class Signaling_A,Signaling_B,WSS,RoomMgr,StunSrv control;
-    class FileSelect,RTC_A,RTC_B,DiskWriter data;
+    class FileSelect,RTC_A,RTC_B,DiskWriter,FileTree data;
     class HTTP server;
 ```
 
 ---
 
 ## 🔄 5. How P2P Works (Connection & Transfer Lifecycle)
-
-The entire transfer lifecycle proceeds through 4 distinct phases:
 
 ```mermaid
 sequenceDiagram
@@ -100,12 +107,12 @@ sequenceDiagram
 
     %% PHASE 1: PAIRING
     rect rgb(30, 35, 45)
-    Note over Alice,Bob: Phase 1: Room Creation & QR Pairing
-    Alice->>Alice: Selects file (e.g. video.mp4, 2 GB)
+    Note over Alice,Bob: Phase 1: Room Creation & Pairing (QR / Code / Hash URL)
+    Alice->>Alice: Selects files or folders (e.g. project/ with subfolders)
     Alice->>Server: WS: {"type": "create-room"}
     Server->>Alice: WS: {"type": "room-created", "code": "KQ34EE"}
-    Alice->>Alice: Renders QR Code & 6-character room code
-    Bob->>Alice: Scans QR code with camera (or enters "KQ34EE")
+    Alice->>Alice: Renders QR Code, Room Code & Shareable Link (#KQ34EE)
+    Bob->>Bob: Opens link relay.app/#KQ34EE or scans QR code
     Bob->>Server: WS: {"type": "join-room", "code": "KQ34EE"}
     Server->>Alice: WS: {"type": "receiver-joined"}
     Server->>Bob: WS: {"type": "room-joined", "code": "KQ34EE"}
@@ -131,24 +138,33 @@ sequenceDiagram
     end
     end
 
-    %% PHASE 3 & 4: DIRECT P2P
+    %% PHASE 3: MANIFEST & SELECTIVE SYNC
     rect rgb(20, 30, 35)
-    Note over Alice,Bob: Phase 3 & 4: Direct P2P File Streaming (Data Plane)
+    Note over Alice,Bob: Phase 3: Manifest Exchange & Selective Sync
     Alice->>Bob: 🔐 Direct DTLS 1.3 & SCTP Handshake (Peer-to-Peer)
-    Note over Alice,Bob: ✅ RTCDataChannel OPEN (Signaling server no longer involved)
-
-    Alice->>Bob: DataChannel: {"type": "meta", "name": "video.mp4", "size": 2147483648}
-    Bob->>Bob: Prompts user: showSaveFilePicker() -> creates disk stream
-    Bob->>Alice: DataChannel: {"type": "ready"}
-
-    loop Chunk Streaming with Backpressure
-        Alice->>Alice: file.slice(offset, 64KB)
-        Alice->>Bob: DataChannel: ArrayBuffer (64 KiB chunk)
-        Bob->>Bob: streamWriter.write(chunk) -> Saves to Disk
+    Note over Alice,Bob: ✅ RTCDataChannel OPEN
+    Alice->>Bob: DataChannel: {"type": "manifest", "files": [...], "totalSize": 104857600}
+    Bob->>Bob: Displays interactive folder/file tree with checkboxes
+    Bob->>Bob: User checks/unchecks items & selects save destination
+    Bob->>Alice: DataChannel: {"type": "manifest-ack", "accepted": true, "selectedIds": [0, 2]}
     end
 
-    Alice->>Bob: DataChannel: {"type": "end"}
-    Bob->>Bob: streamWriter.close() -> Transfer Complete!
+    %% PHASE 4: CHUNK STREAMING
+    rect rgb(25, 35, 40)
+    Note over Alice,Bob: Phase 4: Sequential Chunk Streaming with Backpressure
+    loop For Each Selected File
+        Alice->>Bob: DataChannel: {"type": "file-start", "id": 0, "path": "src/app.js", "size": ...}
+        Bob->>Alice: DataChannel: {"type": "file-ready", "id": 0}
+        loop Chunks with Flow Control
+            Alice->>Alice: file.slice(offset, 64KB)
+            Alice->>Bob: DataChannel: ArrayBuffer (64 KiB chunk)
+            Bob->>Bob: Write chunk (showDirectoryPicker stream or JSZip)
+        end
+        Alice->>Bob: DataChannel: {"type": "file-end", "id": 0}
+        Bob->>Alice: DataChannel: {"type": "file-ack", "id": 0}
+    end
+    Alice->>Bob: DataChannel: {"type": "all-done"}
+    Note over Alice,Bob: Transfer Complete! Screen Wake Lock released.
     end
 ```
 
@@ -165,17 +181,20 @@ webrtc-relay/
 │       ├── roomManager.js   # Ephemeral room manager & cleanup routines
 │       └── codeGenerator.js # Crypto-safe 6-character room codes
 └── client/
-    ├── index.html           # Minimal UI layout & CDN scripts
+    ├── index.html           # UI layout with responsive trees & CDN scripts
     ├── css/
-    │   └── style.css        # Clean dark-mode stylesheet
+    │   └── style.css        # Responsive dark-mode styling (mobile + laptop)
     └── js/
-        ├── app.js           # Main application coordinator
+        ├── app.js           # Main coordinator & lifecycle orchestrator
         ├── signaling.js     # WebSocket signaling client wrapper
         ├── webrtc.js        # RTCPeerConnection & DataChannel wrapper
-        ├── fileTransfer.js  # Chunk streaming, backpressure & disk writers
-        ├── qr.js            # In-browser QR rendering & camera scanner
+        ├── fileScanner.js   # Recursive drag-and-drop & folder entry scanner
+        ├── fileTree.js      # Hierarchical tree builder & sync checkboxes
+        ├── fileTransfer.js  # Manifest protocol, chunk streaming & writers
+        ├── wakeLock.js      # Screen Wake Lock API manager
+        ├── qr.js            # QR rendering & camera scanner
         ├── codeUtils.js     # Code formatting & sanitization helpers
-        └── ui.js            # DOM bindings & UI state handlers
+        └── ui.js            # DOM bindings & progress formatters
 ```
 
 ---
@@ -211,9 +230,12 @@ npm start
 
 ## 💡 8. Browser Compatibility & Technical Highlights
 
-| Feature | Chromium (Chrome, Edge, Brave, Opera) | Firefox / Safari |
+| Feature | Chromium (Chrome, Edge, Brave, Opera) | Firefox / Safari / Mobile |
 | :--- | :--- | :--- |
-| **Max File Size** | **Unlimited** (bounded only by free disk space) | Bounded by available tab RAM (~2–4 GB) |
-| **Save Destination** | Native Save Dialog (`showSaveFilePicker`) | Browser Download Directory |
+| **Multi-File & Folder Transfer** | Full Support (drag-and-drop + directory picker) | Full Support (drag-and-drop + folder picker) |
+| **Max Transfer Size** | **Unlimited** (flat ~10–20 MB memory footprint) | Bounded by device memory (~2–4 GB) |
+| **Folder Save Destination** | `showDirectoryPicker()` (saves directly to chosen disk folder) | Bundles into single `.zip` file via `JSZip` |
+| **Selective Sync Tree** | Interactive folder-level and individual file checkboxes | Interactive folder-level and individual file checkboxes |
+| **Screen Wake Lock** | Native `navigator.wakeLock` supported | Native `navigator.wakeLock` supported |
 | **Data Encryption** | DTLS 1.2 / 1.3 (Mandatory WebRTC E2EE) | DTLS 1.2 / 1.3 (Mandatory WebRTC E2EE) |
 | **P2P Transport** | SCTP over DTLS (`RTCDataChannel`) | SCTP over DTLS (`RTCDataChannel`) |

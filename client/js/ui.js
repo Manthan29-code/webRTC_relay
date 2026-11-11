@@ -1,73 +1,103 @@
+const getEl = (id) => (typeof document !== 'undefined' ? document.getElementById(id) : null);
+
 export const el = {
-  tabSend: document.getElementById('tab-send'),
-  tabReceive: document.getElementById('tab-receive'),
-  panelSend: document.getElementById('panel-send'),
-  panelReceive: document.getElementById('panel-receive'),
+  tabSend: getEl('tab-send'),
+  tabReceive: getEl('tab-receive'),
+  panelSend: getEl('panel-send'),
+  panelReceive: getEl('panel-receive'),
 
-  dropzone: document.getElementById('dropzone'),
-  fileInput: document.getElementById('file-input'),
-  sendFileInfo: document.getElementById('send-file-info'),
-  codeBox: document.getElementById('code-box'),
-  codeText: document.getElementById('code-text'),
-  qrCanvas: document.getElementById('qr-canvas'),
+  // Send panel elements
+  dropzone: getEl('dropzone'),
+  fileInput: getEl('file-input'),
+  folderInput: getEl('folder-input'),
+  btnPickFiles: getEl('btn-pick-files'),
+  btnPickFolder: getEl('btn-pick-folder'),
+  sendFileInfo: getEl('send-file-info'),
 
-  receiveSubTabScan: document.getElementById('subtab-scan'),
-  receiveSubTabType: document.getElementById('subtab-type'),
-  scanPane: document.getElementById('scan-pane'),
-  typePane: document.getElementById('type-pane'),
-  qrVideo: document.getElementById('qr-video'),
-  qrScanCanvas: document.getElementById('qr-scan-canvas'),
-  startScanBtn: document.getElementById('start-scan-btn'),
-  codeInput: document.getElementById('code-input'),
-  connectBtn: document.getElementById('connect-btn'),
+  sendStaging: getEl('send-staging'),
+  sendFileTree: getEl('send-file-tree'),
 
-  sendLinkVisual: document.getElementById('send-link-visual'),
-  receiveLinkVisual: document.getElementById('receive-link-visual'),
+  codeBox: getEl('code-box'),
+  codeText: getEl('code-text'),
+  shareLinkWrapper: getEl('share-link-wrapper'),
+  shareLinkInput: getEl('share-link-input'),
+  copyLinkBtn: getEl('copy-link-btn'),
+  qrCanvas: getEl('qr-canvas'),
 
-  sendStatus: document.getElementById('send-status'),
-  receiveStatus: document.getElementById('receive-status'),
+  sendLinkVisual: getEl('send-link-visual'),
+  sendStatus: getEl('send-status'),
 
-  sendProgress: document.getElementById('send-progress'),
-  sendProgressBar: document.getElementById('send-progress-bar'),
-  sendProgressLabel: document.getElementById('send-progress-label'),
+  sendProgress: getEl('send-progress'),
+  sendCurrentFileLabel: getEl('send-current-file-label'),
+  sendProgressBar: getEl('send-progress-bar'),
+  sendProgressLabel: getEl('send-progress-label'),
+  sendDone: getEl('send-done'),
+  btnNewSend: getEl('btn-new-send'),
 
-  receiveFileInfo: document.getElementById('receive-file-info'),
-  saveAsBtn: document.getElementById('save-as-btn'),
-  receiveProgress: document.getElementById('receive-progress'),
-  receiveProgressBar: document.getElementById('receive-progress-bar'),
-  receiveProgressLabel: document.getElementById('receive-progress-label'),
-  receiveDone: document.getElementById('receive-done'),
-  downloadLink: document.getElementById('download-link'),
+  // Receive panel elements
+  receiveSubTabScan: getEl('subtab-scan'),
+  receiveSubTabType: getEl('subtab-type'),
+  scanPane: getEl('scan-pane'),
+  typePane: getEl('type-pane'),
+  qrVideo: getEl('qr-video'),
+  qrScanCanvas: getEl('qr-scan-canvas'),
+  startScanBtn: getEl('start-scan-btn'),
+  codeInput: getEl('code-input'),
+  connectBtn: getEl('connect-btn'),
+
+  receiveLinkVisual: getEl('receive-link-visual'),
+  receiveStatus: getEl('receive-status'),
+
+  receiveManifestBox: getEl('receive-manifest-box'),
+  receiveManifestSummary: getEl('receive-manifest-summary'),
+  btnSelectAll: getEl('btn-select-all'),
+  btnDeselectAll: getEl('btn-deselect-all'),
+  receiveFileTree: getEl('receive-file-tree'),
+  receiveConfirmBtn: getEl('receive-confirm-btn'),
+  receiveMethodNote: getEl('receive-method-note'),
+
+  receiveProgress: getEl('receive-progress'),
+  receiveCurrentFileLabel: getEl('receive-current-file-label'),
+  receiveProgressBar: getEl('receive-progress-bar'),
+  receiveProgressLabel: getEl('receive-progress-label'),
+  receiveDone: getEl('receive-done'),
+  receiveDoneMessage: getEl('receive-done-message'),
+  downloadLink: getEl('download-link'),
+  btnNewReceive: getEl('btn-new-receive'),
 };
 
 export function showPanel(name) {
   const isSend = name === 'send';
-  el.panelSend.classList.toggle('is-active', isSend);
-  el.panelReceive.classList.toggle('is-active', !isSend);
-  el.tabSend.classList.toggle('is-active', isSend);
-  el.tabReceive.classList.toggle('is-active', !isSend);
+  el.panelSend?.classList.toggle('is-active', isSend);
+  el.panelReceive?.classList.toggle('is-active', !isSend);
+  el.tabSend?.classList.toggle('is-active', isSend);
+  el.tabReceive?.classList.toggle('is-active', !isSend);
 }
 
 export function showReceiveSubTab(name) {
   const isScan = name === 'scan';
-  el.scanPane.classList.toggle('is-active', isScan);
-  el.typePane.classList.toggle('is-active', !isScan);
-  el.receiveSubTabScan.classList.toggle('is-active', isScan);
-  el.receiveSubTabType.classList.toggle('is-active', !isScan);
+  el.scanPane?.classList.toggle('is-active', isScan);
+  el.typePane?.classList.toggle('is-active', !isScan);
+  el.receiveSubTabScan?.classList.toggle('is-active', isScan);
+  el.receiveSubTabType?.classList.toggle('is-active', !isScan);
 }
 
 /** Drives the shared "link" signature visual: idle -> waiting -> connected. */
 export function setLinkState(visualEl, state) {
-  visualEl.dataset.state = state; // 'idle' | 'waiting' | 'connected'
+  if (visualEl) {
+    visualEl.dataset.state = state; // 'idle' | 'waiting' | 'connected'
+  }
 }
 
-export function setProgress(barEl, labelEl, sent, total) {
+export function setProgress(barEl, labelEl, sent, total, extraPrefix = '') {
   const pct = total > 0 ? Math.min(100, (sent / total) * 100) : 0;
-  barEl.style.width = `${pct.toFixed(1)}%`;
-  labelEl.textContent = `${formatBytes(sent)} / ${formatBytes(total)} (${pct.toFixed(0)}%)`;
+  if (barEl) barEl.style.width = `${pct.toFixed(1)}%`;
+  const prefix = extraPrefix ? `${extraPrefix} • ` : '';
+  if (labelEl) labelEl.textContent = `${prefix}${formatBytes(sent)} / ${formatBytes(total)} (${pct.toFixed(0)}%)`;
 }
 
 export function formatBytes(bytes) {
+  if (typeof bytes !== 'number' || isNaN(bytes) || bytes <= 0) return '0 B';
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
   if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;

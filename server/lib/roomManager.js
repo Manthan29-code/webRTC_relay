@@ -58,6 +58,13 @@ class RoomManager {
     return peer;
   }
 
+  /** Alias for handleDisconnect that supports an optional callback. */
+  leave(ws, callback) {
+    const peer = this.handleDisconnect(ws);
+    if (callback && peer) callback(peer);
+    return peer;
+  }
+
   _sweepExpired() {
     const now = Date.now();
     for (const [code, room] of this.rooms) {

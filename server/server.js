@@ -19,6 +19,13 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
 };
 
+// Map vendor script URLs to their node_modules locations for first-party serving
+const VENDOR_FILES = {
+  '/vendor/qrcode.min.js': path.join(__dirname, 'node_modules', 'qrcode', 'build', 'qrcode.min.js'),
+  '/vendor/jsQR.js': path.join(__dirname, 'node_modules', 'jsqr', 'dist', 'jsQR.js'),
+  '/vendor/jszip.min.js': path.join(__dirname, 'node_modules', 'jszip', 'dist', 'jszip.min.js'),
+};
+
 // ---- Static file server -----------------------------------------------
 // Note: this server only ever transports signaling messages (a few KB of
 // JSON) and the tiny static client bundle. The actual file being shared
@@ -28,6 +35,23 @@ const httpServer = http.createServer((req, res) => {
   if (reqPath === '/health') {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end('OK');
+  }
+
+  // Handle local vendor scripts from node_modules
+  if (VENDOR_FILES[reqPath]) {
+    const vendorPath = VENDOR_FILES[reqPath];
+    fs.readFile(vendorPath, (err, data) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        return res.end(`Vendor module not found: ${reqPath}. Please run "npm install" in the server directory.`);
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/javascript; charset=utf-8',
+        'Cache-Control': 'public, max-age=86400',
+      });
+      res.end(data);
+    });
+    return;
   }
 
   if (reqPath === '/') reqPath = '/index.html';
@@ -104,7 +128,9 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     const peer = rooms.handleDisconnect(ws);
-    send(peer, { type: 'peer-left' });
+    if (peer) {
+      send(peer, { type: 'peer-left' });
+    }
   });
 });
 

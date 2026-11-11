@@ -20,6 +20,10 @@
 
 * { box-sizing: border-box; }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -37,7 +41,7 @@ body {
 }
 
 /* ---- Header ----------------------------------------------------------- */
-.site-header { max-width: 520px; text-align: center; margin-bottom: 2rem; }
+.site-header { max-width: 580px; text-align: center; margin-bottom: 2rem; }
 
 .wordmark {
   display: inline-flex;
@@ -67,7 +71,7 @@ body {
 /* ---- Card / tabs -------------------------------------------------------- */
 .card {
   width: 100%;
-  max-width: 460px;
+  max-width: 580px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -112,7 +116,7 @@ body {
 .dropzone {
   border: 1px dashed var(--line);
   border-radius: var(--radius);
-  padding: 2rem 1rem;
+  padding: 1.75rem 1rem;
   text-align: center;
   cursor: pointer;
   transition: border-color 150ms ease, background-color 150ms ease;
@@ -124,13 +128,180 @@ body {
   outline: none;
 }
 
-.dropzone-label { margin: 0; color: var(--ink-muted); font-size: 0.9rem; }
-.file-info { margin: 0.6rem 0 0; font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink); }
+.dropzone-icon {
+  font-size: 2rem;
+  margin-bottom: 0.3rem;
+}
 
-/* ---- Signature element: the link visual ---------------------------------
-   Two nodes joined by a line. Idle = quiet gray. Waiting = amber dashes
-   marching (mirrors a handshake in progress). Connected = solid cyan
-   with a brief pulse -- the moment the RTCDataChannel actually opens. */
+.dropzone-label { margin: 0; color: var(--ink-muted); font-size: 0.9rem; }
+
+.dropzone-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+
+.file-info { margin: 0.6rem 0 0; font-family: var(--font-mono); font-size: 0.85rem; color: var(--cyan); }
+
+/* ---- Staging & Manifest Trees ------------------------------------------- */
+.staging-box, .manifest-box {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.9rem;
+  margin: 1.25rem 0;
+}
+
+.staging-header, .manifest-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.manifest-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--cyan);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.btn-link:hover { color: #8ef7e5; }
+.divider { color: var(--line); font-size: 0.8rem; }
+
+.method-note {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  margin: 0.75rem 0 0.5rem;
+  text-align: center;
+}
+
+.file-tree-container {
+  max-height: 240px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.file-tree-container::-webkit-scrollbar { width: 5px; }
+.file-tree-container::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+.tree-folder-group { margin-bottom: 0.25rem; }
+
+.tree-folder-header {
+  display: flex;
+  align-items: center;
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tree-folder-children {
+  padding-left: 0.85rem;
+  margin-left: 0.45rem;
+  border-left: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.tree-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  transition: background 120ms ease;
+}
+
+.tree-file-row:hover { background: rgba(255, 255, 255, 0.05); }
+
+.tree-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tree-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cyan);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.folder-checkbox { accent-color: var(--amber); }
+
+.tree-icon { font-size: 0.95rem; flex-shrink: 0; }
+
+.tree-name {
+  font-size: 0.82rem;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-title { font-weight: 600; color: var(--amber); }
+
+.tree-meta {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  margin-left: 0.3rem;
+  flex-shrink: 0;
+}
+
+.tree-size {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.tree-status-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.badge-pending { background: rgba(255, 255, 255, 0.06); color: var(--ink-muted); }
+.badge-transferring {
+  background: rgba(94, 234, 212, 0.15);
+  color: var(--cyan);
+  border: 1px solid rgba(94, 234, 212, 0.3);
+}
+.badge-complete { background: rgba(94, 234, 212, 0.2); color: var(--cyan); font-weight: 600; }
+.badge-error { background: rgba(255, 107, 107, 0.2); color: var(--danger); }
+
+/* ---- Signature element: the link visual --------------------------------- */
 .link-visual {
   display: flex;
   align-items: center;
@@ -187,7 +358,7 @@ body {
   100% { transform: scale(1); }
 }
 
-/* ---- Code + QR ------------------------------------------------------------ */
+/* ---- Code + QR + Share Link ----------------------------------------------- */
 .code-box { text-align: center; margin-bottom: 1.25rem; }
 .code-eyebrow { margin: 0 0 0.4rem; color: var(--ink-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
 
@@ -197,8 +368,32 @@ body {
   font-size: 2rem;
   letter-spacing: 0.08em;
   color: var(--cyan);
-  margin: 0 0 1rem;
+  margin: 0 0 0.75rem;
 }
+
+.share-link-wrapper {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0.5rem auto 1rem;
+  max-width: 380px;
+}
+
+.share-link-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-link-input:focus { outline: none; border-color: var(--cyan); }
 
 .qr-canvas { border-radius: 8px; margin-bottom: 0.6rem; }
 .code-hint { margin: 0; color: var(--ink-muted); font-size: 0.8rem; }
@@ -245,7 +440,7 @@ body {
   font-weight: 500;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: filter 150ms ease, opacity 150ms ease;
+  transition: filter 150ms ease, opacity 150ms ease, background-color 150ms ease;
   text-align: center;
   text-decoration: none;
   display: inline-block;
@@ -256,17 +451,74 @@ body {
 
 .btn-primary { background: var(--cyan); color: #0a1512; }
 .btn-accent { margin-top: 10px; background: var(--amber); color: #2a1400; }
+.btn-subtle {
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.btn-subtle:hover { background: #2f3440; border-color: var(--ink-muted); }
+
+.btn-sm {
+  width: auto;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.82rem;
+  margin: 0;
+  white-space: nowrap;
+}
 
 /* ---- Status + progress ----------------------------------------------------- */
 .status-line { min-height: 1.2rem; margin: 0.5rem 0; color: var(--ink-muted); font-size: 0.85rem; text-align: center; }
+
+.current-file-label {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--cyan);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .progress { margin-top: 1rem; }
 .progress-track { height: 6px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
 .progress-bar { height: 100%; width: 0%; background: var(--cyan); transition: width 120ms linear; }
 .progress-label { margin: 0.4rem 0 0; font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-muted); text-align: center; }
 
-.receive-done { text-align: center; margin-top: 1rem; }
+.done-box { text-align: center; margin-top: 1.25rem; }
+.done-message { font-size: 0.95rem; font-weight: 500; color: var(--cyan); margin-bottom: 0.75rem; }
 
 /* ---- Footer -------------------------------------------------------------- */
-.site-footer { max-width: 460px; margin-top: 1.75rem; text-align: center; }
+.site-footer { max-width: 580px; margin-top: 1.75rem; text-align: center; }
 .site-footer p { margin: 0; color: var(--ink-muted); font-size: 0.78rem; line-height: 1.5; }
+
+/* ---- Mobile responsiveness ----------------------------------------------- */
+@media (max-width: 480px) {
+  body {
+    padding: 1.5rem 0.75rem;
+  }
+  .card {
+    padding: 1.25rem 0.85rem;
+    border-radius: 12px;
+  }
+  .code-text {
+    font-size: 1.6rem;
+  }
+  .share-link-wrapper {
+    flex-direction: column;
+  }
+  .share-link-input, .share-link-wrapper .btn-sm {
+    width: 100%;
+  }
+  .tree-file-row {
+    padding: 0.45rem 0.35rem;
+  }
+  .tree-checkbox {
+    width: 18px;
+    height: 18px;
+  }
+}
