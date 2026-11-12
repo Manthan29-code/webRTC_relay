@@ -17,23 +17,27 @@ Traditional file-sharing tools force you to upload entire files to a cloud serve
 * **🔒 Absolute Privacy & Zero Trace:** Your files never touch a server, even temporarily. The central Node.js server only acts as a temporary "handshake broker" to exchange network addresses (SDP/ICE) and never sees file names, contents, or metadata.
 * **📁 Multi-File & Nested Folder Support:** Drag-and-drop entire folders or select batches of files. The folder hierarchy and subfolder structures are preserved automatically.
 * **☑️ Receiver Selective Sync:** Receiver previews the staged folder/file tree with folder-level checkboxes (with tri-state indeterminate support) and individual file checkboxes, downloading only what they want.
-* **📦 Direct-to-Disk & Universal ZIP Fallback:** On Chromium desktop, streams directly into chosen folders via `showDirectoryPicker()`. On Safari, Firefox, iOS, and Android, bundles files client-side into a single `.zip` file for an effortless 1-click download.
+* **🖼️ Visual Image & Video Previews (Media Gallery):** When sharing folders with mixed files, photos, or videos, users can toggle between the standard "All Files" list and a dedicated "Media" gallery. Features in-browser video frame capture, responsive 2-column grids on phones, folder-level select, and progressive thumbnail streaming over WebRTC before downloading original files.
+* **📦 Direct-to-Disk & Universal ZIP Fallback:** 
+  * On **Chromium Desktop** (Chrome, Edge, Brave), streams incoming chunks directly into chosen folders via `showDirectoryPicker()` with flat ~10 MB memory usage (unlimited file size).
+  * On **Safari, Firefox, iOS, and Android**, bundles files client-side into a single `.zip` file for an effortless 1-click download with preserved folder structure.
 * **🔋 Screen Wake Lock API:** Prevents mobile devices and laptops from sleeping mid-transfer (`navigator.wakeLock`).
 * **🔗 Shareable Direct Links (`#CODE`):** One-click copyable URL (`relay.app/#KP34EE`) that automatically connects the receiver without manual typing.
-* **📱 Instant Pairing via QR or 6-Char Code:** No accounts, no logins, no phone numbers. Share a 6-character code, copy a link, or scan a dynamic QR code.
+* **📱 Instant Pairing via QR or 6-Char Code:** No accounts, no logins, no phone numbers. Share a 6-character code, copy a link, or scan a dynamic QR code with your mobile camera.
 * **⚡ Blazing Fast Speeds:** When devices are on the same local network (Wi-Fi or LAN), transfers achieve raw local network speeds without consuming internet bandwidth.
 * **🛡️ End-to-End Encryption (E2EE):** All WebRTC DataChannels are cryptographically protected out-of-the-box using **DTLS 1.2/1.3** and **SCTP**.
+* **🚀 Zero External CDN Dependencies:** All client-side libraries (`qrcode`, `jsQR`, `jszip`) are served directly from the local server (`/vendor/`), bypassing browser Tracking Prevention blocks and enabling 100% offline local network transfers.
 
 ---
 
 ## ⚙️ 3. What Does It Do?
 
-1. **Recursive Folder Ingestion:** Uses `webkitGetAsEntry()` batch readers and directory inputs to traverse arbitrary folder and subfolder depths on the sender.
-2. **Two-Phase Manifest Protocol:** Sender shares the file inventory (`manifest`), and the receiver sends back an acknowledgement (`manifest-ack`) selecting exact files to download.
+1. **Recursive Folder Ingestion:** Uses Chromium's `window.showDirectoryPicker()` alongside `webkitGetAsEntry()` batch readers and directory inputs to traverse arbitrary folder and subfolder depths on the sender.
+2. **Two-Phase Manifest Protocol:** Sender shares the file inventory (`manifest`), and the receiver sends back an acknowledgement (`manifest-ack`) selecting exact files to download before bytes stream.
 3. **Smart Backpressure Flow Control:** Streams files in 64 KiB chunks with high (8 MB) and low (1 MB) watermark buffer monitoring (`bufferedAmountLowThreshold`) to prevent memory spikes.
 4. **Direct-to-Disk Streaming (Chromium):** Uses the **File System Access API** (`showDirectoryPicker` + `FileSystemWritableFileStream`) to write incoming bytes straight to disk, keeping memory consumption flat (~10–20 MB).
-5. **Universal Fallback (Safari / Firefox / Mobile):** Assembles incoming chunks into an in-memory or streamed `.zip` archive via `JSZip`, triggering a single unified download.
-6. **Reactive Transfer UI & Zero-Reload State Management:** Provides per-file progress badges (`Pending`, `Downloading...`, `Received ✅`), overall byte counters, and a clean "Start New Transfer" state reset that requires no page refresh.
+5. **Universal Fallback (Safari / Firefox / Mobile):** Assembles incoming chunks into an in-browser `.zip` archive via `JSZip`, triggering a single unified download that protects against mobile popup spam.
+6. **Reactive Transfer UI & Zero-Reload State Management:** Provides per-file progress badges (`Pending`, `Downloading...`, `Received ✅`), overall byte counters, and a clean "Start New Transfer" / "Receive More Files" state reset that requires no page refresh.
 
 ---
 
@@ -44,14 +48,14 @@ The architecture separates the **Control Plane (Signaling)** from the **Data Pla
 ```mermaid
 graph TB
     subgraph SENDER["🖥️ Sender Browser (Peer A)"]
-        FileSelect["Recursive File & Folder Reader<br/>(File.slice + webkitGetAsEntry)"]
+        FileSelect["Recursive File & Folder Reader<br/>(showDirectoryPicker + webkitGetAsEntry)"]
         RTC_A["RTCPeerConnection (DataChannel)"]
         Signaling_A["Signaling Client (WebSocket)"]
         WakeLock_A["Screen Wake Lock API"]
     end
 
     subgraph SERVER["☁️ Node.js Signaling & Static Server"]
-        HTTP["Static HTTP Host (index.html, JS, CSS)"]
+        HTTP["Static HTTP Host & Local Vendor Assets<br/>(index.html, JS, CSS, /vendor/*)"]
         WSS["WebSocket Server"]
         RoomMgr["RoomManager (In-Memory Map)"]
         WSS --- RoomMgr
@@ -175,21 +179,23 @@ sequenceDiagram
 ```
 webrtc-relay/
 ├── server/
-│   ├── server.js            # HTTP static host + WebSocket signaling relay
-│   ├── package.json         # Node.js dependencies
+│   ├── server.js            # HTTP host + WebSocket signaling relay + local vendor assets
+│   ├── package.json         # Node.js dependencies (ws, qrcode, jsqr, jszip)
 │   └── lib/
 │       ├── roomManager.js   # Ephemeral room manager & cleanup routines
 │       └── codeGenerator.js # Crypto-safe 6-character room codes
 └── client/
-    ├── index.html           # UI layout with responsive trees & CDN scripts
+    ├── index.html           # UI layout with responsive trees & first-party vendor scripts
     ├── css/
     │   └── style.css        # Responsive dark-mode styling (mobile + laptop)
     └── js/
         ├── app.js           # Main coordinator & lifecycle orchestrator
         ├── signaling.js     # WebSocket signaling client wrapper
         ├── webrtc.js        # RTCPeerConnection & DataChannel wrapper
-        ├── fileScanner.js   # Recursive drag-and-drop & folder entry scanner
+        ├── fileScanner.js   # Recursive folder scanner (showDirectoryPicker + webkitGetAsEntry)
         ├── fileTree.js      # Hierarchical tree builder & sync checkboxes
+        ├── fileTreeGroups.js# Groups images by folder path for the Gallery view
+        ├── imageUtils.js    # Image detection & compact thumbnail generator
         ├── fileTransfer.js  # Manifest protocol, chunk streaming & writers
         ├── wakeLock.js      # Screen Wake Lock API manager
         ├── qr.js            # QR rendering & camera scanner
@@ -209,7 +215,7 @@ webrtc-relay/
 # Navigate to the server folder
 cd server
 
-# Install dependencies (ws)
+# Install dependencies (ws, qrcode, jsqr, jszip)
 npm install
 
 # Start the server
@@ -232,10 +238,11 @@ npm start
 
 | Feature | Chromium (Chrome, Edge, Brave, Opera) | Firefox / Safari / Mobile |
 | :--- | :--- | :--- |
-| **Multi-File & Folder Transfer** | Full Support (drag-and-drop + directory picker) | Full Support (drag-and-drop + folder picker) |
-| **Max Transfer Size** | **Unlimited** (flat ~10–20 MB memory footprint) | Bounded by device memory (~2–4 GB) |
-| **Folder Save Destination** | `showDirectoryPicker()` (saves directly to chosen disk folder) | Bundles into single `.zip` file via `JSZip` |
+| **Multi-File & Folder Transfer** | Full Support (`showDirectoryPicker` + drag-and-drop) | Full Support (`webkitGetAsEntry` + folder input) |
+| **Max Transfer Size** | **Unlimited** (flat ~10–20 MB memory footprint) | Bounded by device memory (~1–2 GB) |
+| **Folder Save Destination** | `showDirectoryPicker()` (saves directly into disk folder) | Bundles into single `.zip` file via `JSZip` |
 | **Selective Sync Tree** | Interactive folder-level and individual file checkboxes | Interactive folder-level and individual file checkboxes |
 | **Screen Wake Lock** | Native `navigator.wakeLock` supported | Native `navigator.wakeLock` supported |
 | **Data Encryption** | DTLS 1.2 / 1.3 (Mandatory WebRTC E2EE) | DTLS 1.2 / 1.3 (Mandatory WebRTC E2EE) |
 | **P2P Transport** | SCTP over DTLS (`RTCDataChannel`) | SCTP over DTLS (`RTCDataChannel`) |
+| **First-Party Assets** | Served locally via `/vendor/` (No CDN / No Tracking Blocks) | Served locally via `/vendor/` (No CDN / No Tracking Blocks) |

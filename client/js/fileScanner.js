@@ -1,3 +1,5 @@
+import { isImageFile, isVideoFile, isMediaFile } from './imageUtils.js';
+
 /**
  * Utilities for extracting, recursively scanning, and normalizing files
  * from Drag & Drop events, Directory Pickers, and File Inputs.
@@ -153,6 +155,9 @@ function normalizeFileList(rawList) {
     path: sanitizePath(item.path || item.file.name),
     size: item.file.size,
     mime: item.file.type || 'application/octet-stream',
+    isImage: isImageFile(item.file.name, item.file.type),
+    isVideo: isVideoFile(item.file.name, item.file.type),
+    isMedia: isMediaFile(item.file.name, item.file.type),
   }));
 }
 

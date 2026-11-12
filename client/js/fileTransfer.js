@@ -23,6 +23,7 @@ export class FileSender {
       onFileProgress: callbacks.onFileProgress || (() => {}),
       onTotalProgress: callbacks.onTotalProgress || (() => {}),
       onFileComplete: callbacks.onFileComplete || (() => {}),
+      onThumbnails: callbacks.onThumbnails || (() => {}),
       onComplete: callbacks.onComplete || (() => {}),
       onError: callbacks.onError || (() => {}),
     };
@@ -82,12 +83,34 @@ export class FileSender {
           path: f.path,
           size: f.size,
           mime: f.mime,
+          isImage: Boolean(f.isImage),
+          isVideo: Boolean(f.isVideo),
+          isMedia: Boolean(f.isMedia || f.isImage || f.isVideo),
         })),
         totalSize: totalBatchBytes,
       };
 
       this.channel.send(JSON.stringify(manifestMsg));
       this.callbacks.onManifestSent(manifestMsg);
+
+      // Stream media thumbnails to receiver for instant previews (<32 KB per batch)
+      const mediaFiles = this.files.filter((f) => f.isMedia || f.isImage || f.isVideo);
+      const THUMB_BATCH_SIZE = 3;
+      for (let i = 0; i < mediaFiles.length; i += THUMB_BATCH_SIZE) {
+        if (this._cancelled) break;
+        const batch = mediaFiles
+          .slice(i, i + THUMB_BATCH_SIZE)
+          .filter((f) => f.thumbData)
+          .map((f) => ({ id: f.id, thumb: f.thumbData }));
+
+        if (batch.length > 0) {
+          try {
+            this.channel.send(JSON.stringify({ type: 'thumbs', items: batch }));
+          } catch (e) {
+            console.warn('Failed to send thumbnail batch:', e);
+          }
+        }
+      }
 
       // Wait for receiver's manifest ACK with selected IDs
       const manifestAck = await new Promise((resolve) => {
@@ -197,6 +220,7 @@ export class FileReceiver {
       onFileProgress: callbacks.onFileProgress || (() => {}),
       onTotalProgress: callbacks.onTotalProgress || (() => {}),
       onFileComplete: callbacks.onFileComplete || (() => {}),
+      onThumbnails: callbacks.onThumbnails || (() => {}),
       onComplete: callbacks.onComplete || (() => {}),
       onError: callbacks.onError || (() => {}),
     };
@@ -257,6 +281,8 @@ export class FileReceiver {
 
       if (msg.type === 'manifest') {
         this._handleManifest(msg);
+      } else if (msg.type === 'thumbs') {
+        this.callbacks.onThumbnails(msg.items);
       } else if (msg.type === 'file-start') {
         this._handleFileStart(msg);
       } else if (msg.type === 'file-end') {

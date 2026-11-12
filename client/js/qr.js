@@ -7,8 +7,8 @@
 export async function renderQrCode(canvas, text) {
   // Wait briefly if script is still loading
   if (!window.QRCode) {
-    for (let i = 0; i < 20 && !window.QRCode; i++) {
-      await new Promise((r) => setTimeout(r, 50));
+    for (let i = 0; i < 30 && !window.QRCode; i++) {
+      await new Promise((r) => setTimeout(r, 100));
     }
   }
 

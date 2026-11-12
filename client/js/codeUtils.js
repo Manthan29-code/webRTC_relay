@@ -5,9 +5,14 @@
 export const CODE_LENGTH = 6;
 const ALLOWED_CHARS = /[^ACDEFGHJKMNPQRTUVWXY234679]/gi;
 
-/** Strips invalid characters and upper-cases as the user types. */
+/** Strips whitespace, URLs, and invalid characters, returning uppercase code up to 6 chars. */
 export function sanitizeCodeInput(raw) {
-  return raw.toUpperCase().replace(ALLOWED_CHARS, '').slice(0, CODE_LENGTH);
+  if (typeof raw !== 'string') return '';
+  let str = raw;
+  if (str.includes('#')) {
+    str = str.split('#').pop();
+  }
+  return str.toUpperCase().replace(/\s+/g, '').replace(ALLOWED_CHARS, '').slice(0, CODE_LENGTH);
 }
 
 export function isCompleteCode(code) {
@@ -16,6 +21,7 @@ export function isCompleteCode(code) {
 
 /** "KP34EE" -> "KP3 4EE" for easier reading/dictation. */
 export function formatCodeForDisplay(code) {
+  if (!code) return '';
   const mid = Math.ceil(code.length / 2);
   return `${code.slice(0, mid)} ${code.slice(mid)}`;
 }

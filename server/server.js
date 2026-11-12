@@ -37,11 +37,20 @@ const httpServer = http.createServer((req, res) => {
     return res.end('OK');
   }
 
-  // Handle local vendor scripts from node_modules
+  // Handle local vendor scripts from node_modules (with automatic CDN fallback if not yet installed)
   if (VENDOR_FILES[reqPath]) {
     const vendorPath = VENDOR_FILES[reqPath];
     fs.readFile(vendorPath, (err, data) => {
       if (err) {
+        const cdnFallbacks = {
+          '/vendor/qrcode.min.js': 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js',
+          '/vendor/jsQR.js': 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',
+          '/vendor/jszip.min.js': 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+        };
+        if (cdnFallbacks[reqPath]) {
+          res.writeHead(302, { Location: cdnFallbacks[reqPath] });
+          return res.end();
+        }
         res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
         return res.end(`Vendor module not found: ${reqPath}. Please run "npm install" in the server directory.`);
       }

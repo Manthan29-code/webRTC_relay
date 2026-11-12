@@ -5,6 +5,7 @@ import { renderQrCode, QrScanner } from './qr.js';
 import { sanitizeCodeInput, isCompleteCode, formatCodeForDisplay } from './codeUtils.js';
 import { el, showPanel, showReceiveSubTab, setLinkState, setProgress, formatBytes } from './ui.js';
 import { getFilesFromDataTransfer, getFilesFromInput, getFilesFromDirectoryPicker } from './fileScanner.js';
+import { generateThumbnail } from './imageUtils.js';
 import { FileTreeView } from './fileTree.js';
 import { acquireWakeLock, releaseWakeLock } from './wakeLock.js';
 
@@ -106,6 +107,16 @@ async function beginSend(files) {
   resetSendState();
   currentSendFiles = files;
 
+  // Prepare sender media thumbnails (instant local object URL + background compressed thumb)
+  for (const f of files) {
+    if ((f.isMedia || f.isImage || f.isVideo) && f.file) {
+      f.thumb = URL.createObjectURL(f.file);
+      generateThumbnail(f.file).then((t) => {
+        f.thumbData = t;
+      });
+    }
+  }
+
   const totalSize = files.reduce((acc, f) => acc + f.size, 0);
   el.sendFileInfo.textContent = `${files.length} item${files.length > 1 ? 's' : ''} staged (${formatBytes(totalSize)})`;
 
@@ -130,6 +141,7 @@ async function beginSend(files) {
       el.codeText.textContent = formatCodeForDisplay(code);
       const shareUrl = `${window.location.origin}${window.location.pathname}#${code}`;
       el.shareLinkInput.value = shareUrl;
+      if (el.shareLinkWrapper) el.shareLinkWrapper.hidden = false;
       el.codeBox.hidden = false;
       renderQrCode(el.qrCanvas, code);
       setLinkState(el.sendLinkVisual, 'waiting');
@@ -211,6 +223,12 @@ function resetSendState() {
   releaseWakeLock();
   fileSenderInstance?.cancel();
   fileSenderInstance = null;
+
+  for (const f of currentSendFiles) {
+    if (f.thumb && typeof f.thumb === 'string' && f.thumb.startsWith('blob:')) {
+      URL.revokeObjectURL(f.thumb);
+    }
+  }
 
   if (sendPeer) {
     sendPeer.close();
@@ -343,6 +361,10 @@ async function connectToRoom(code) {
 
         onFileComplete: (fileMeta) => {
           receiverTreeView?.updateFileStatus(fileMeta.id, 'Received ✅', 'complete');
+        },
+
+        onThumbnails: (items) => {
+          receiverTreeView?.setThumbnails(items);
         },
 
         onComplete: (result) => {
