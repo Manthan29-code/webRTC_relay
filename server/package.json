@@ -5,7 +5,8 @@
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "postinstall": "node lib/bundleQrcode.js"
   },
   "dependencies": {
     "jsqr": "^1.4.0",

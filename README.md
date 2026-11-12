@@ -1,6 +1,6 @@
 # ⚡ Relay — WebRTC Peer-to-Peer File & Folder Transfer
 
-An ephemeral, browser-to-browser direct file sharing platform built with WebRTC. Files and nested folders stream directly between peers with end-to-end encryption, requiring zero uploads, imposing no server storage limits, and leaving zero footprint on intermediary servers.
+An ephemeral, browser-to-browser direct file sharing platform built with WebRTC. Files and nested folders stream directly between peers with end-to-end encryption, requiring zero cloud uploads, imposing no server storage limits, leaving zero footprint on intermediary servers, and operating with **zero external CDN dependencies**.
 
 ---
 
@@ -15,29 +15,41 @@ Traditional file-sharing tools force you to upload entire files to a cloud serve
 ## 🎯 2. Why Use It?
 
 * **🔒 Absolute Privacy & Zero Trace:** Your files never touch a server, even temporarily. The central Node.js server only acts as a temporary "handshake broker" to exchange network addresses (SDP/ICE) and never sees file names, contents, or metadata.
-* **📁 Multi-File & Nested Folder Support:** Drag-and-drop entire folders or select batches of files. The folder hierarchy and subfolder structures are preserved automatically.
-* **☑️ Receiver Selective Sync:** Receiver previews the staged folder/file tree with folder-level checkboxes (with tri-state indeterminate support) and individual file checkboxes, downloading only what they want.
-* **🖼️ Visual Image & Video Previews (Media Gallery):** When sharing folders with mixed files, photos, or videos, users can toggle between the standard "All Files" list and a dedicated "Media" gallery. Features in-browser video frame capture, responsive 2-column grids on phones, folder-level select, and progressive thumbnail streaming over WebRTC before downloading original files.
+* **📁 Multi-File & Nested Folder Support:** Drag-and-drop entire folders or select batches of files. The entire directory hierarchy and nested subfolder structures are preserved automatically.
+* **🖼️ Dual-View Staging & Media Gallery:**
+  * **📋 All Files Tab:** Full hierarchical folder tree with collapsible branches, file icons, and file sizes.
+  * **🖼️ Media Tab:** Dedicated visual gallery for photos and videos, isolated from other documents. Media is grouped by parent folder with folder-level select buttons and individual card selection.
+* **🎬 Instant In-Browser Image & Video Previews:**
+  * **Images:** Instant high-speed thumbnail downscaling via HTML5 Canvas.
+  * **Videos:** Automatic client-side video frame extraction (seeks to 1.0s timestamp, captures frame to canvas, and overlays a `▶ Video` badge with duration).
+* **⚡ Progressive P2P Thumbnail Streaming:** The sender generates lightweight thumbnails (<32 KB per batch) and streams them over the WebRTC DataChannel ahead of the transfer. The receiver previews photos and videos live in the Media gallery *before* choosing which files to download.
+* **📱 Mobile-Optimized Responsive Layout:**
+  * **Mobile Phones (`≤ 480px`):** Fixed **2 media items per row** for an Instagram-like browsing experience on small screens.
+  * **Desktops & Tablets:** Auto-filling adaptive grid with clean aspect-ratio cards.
+* **🛡️ Zero External CDN Dependencies:** 100% self-contained. All client libraries (`qrcode`, `jsQR`, `jszip`) are served directly from the local server (`/vendor/`). Eliminates Microsoft Edge / Chrome / Safari / Firefox **Tracking Prevention** errors and enables transfers on air-gapped local networks.
+* **📋 Smart Code Sanitization & Direct Links:**
+  * Formatted codes (e.g., `C6E RRX` with spaces) or full URLs with hashes (`http://.../#C6ERRX`) are automatically sanitized and never truncated.
+  * Shareable direct URL (`#CODE`) and high-resolution dynamic QR code generation/scanning.
 * **📦 Direct-to-Disk & Universal ZIP Fallback:** 
-  * On **Chromium Desktop** (Chrome, Edge, Brave), streams incoming chunks directly into chosen folders via `showDirectoryPicker()` with flat ~10 MB memory usage (unlimited file size).
-  * On **Safari, Firefox, iOS, and Android**, bundles files client-side into a single `.zip` file for an effortless 1-click download with preserved folder structure.
+  * On **Chromium Desktop** (Chrome, Edge, Brave, Opera), streams incoming chunks directly into chosen folders via `showDirectoryPicker()` with a flat ~10–20 MB memory footprint (unlimited file size).
+  * On **Safari, Firefox, iOS, and Android**, bundles files client-side into a single `.zip` file with preserved folder hierarchy for an effortless 1-click download.
+* **🔄 Non-Blocking State Resets:** Complete a transfer and immediately click **"Start New Transfer"** or **"Receive More Files"** without reloading the browser page.
 * **🔋 Screen Wake Lock API:** Prevents mobile devices and laptops from sleeping mid-transfer (`navigator.wakeLock`).
-* **🔗 Shareable Direct Links (`#CODE`):** One-click copyable URL (`relay.app/#KP34EE`) that automatically connects the receiver without manual typing.
-* **📱 Instant Pairing via QR or 6-Char Code:** No accounts, no logins, no phone numbers. Share a 6-character code, copy a link, or scan a dynamic QR code with your mobile camera.
-* **⚡ Blazing Fast Speeds:** When devices are on the same local network (Wi-Fi or LAN), transfers achieve raw local network speeds without consuming internet bandwidth.
 * **🛡️ End-to-End Encryption (E2EE):** All WebRTC DataChannels are cryptographically protected out-of-the-box using **DTLS 1.2/1.3** and **SCTP**.
-* **🚀 Zero External CDN Dependencies:** All client-side libraries (`qrcode`, `jsQR`, `jszip`) are served directly from the local server (`/vendor/`), bypassing browser Tracking Prevention blocks and enabling 100% offline local network transfers.
 
 ---
 
 ## ⚙️ 3. What Does It Do?
 
 1. **Recursive Folder Ingestion:** Uses Chromium's `window.showDirectoryPicker()` alongside `webkitGetAsEntry()` batch readers and directory inputs to traverse arbitrary folder and subfolder depths on the sender.
-2. **Two-Phase Manifest Protocol:** Sender shares the file inventory (`manifest`), and the receiver sends back an acknowledgement (`manifest-ack`) selecting exact files to download before bytes stream.
-3. **Smart Backpressure Flow Control:** Streams files in 64 KiB chunks with high (8 MB) and low (1 MB) watermark buffer monitoring (`bufferedAmountLowThreshold`) to prevent memory spikes.
-4. **Direct-to-Disk Streaming (Chromium):** Uses the **File System Access API** (`showDirectoryPicker` + `FileSystemWritableFileStream`) to write incoming bytes straight to disk, keeping memory consumption flat (~10–20 MB).
-5. **Universal Fallback (Safari / Firefox / Mobile):** Assembles incoming chunks into an in-browser `.zip` archive via `JSZip`, triggering a single unified download that protects against mobile popup spam.
-6. **Reactive Transfer UI & Zero-Reload State Management:** Provides per-file progress badges (`Pending`, `Downloading...`, `Received ✅`), overall byte counters, and a clean "Start New Transfer" / "Receive More Files" state reset that requires no page refresh.
+2. **Media Extraction & Video Capture:** Client-side filters detect images and videos, generating lightweight thumbnails (data URLs) and isolating them into the dedicated Media Gallery tab.
+3. **Two-Phase Manifest Protocol:**
+   * **Phase A (Inventory & Thumbnails):** Sender transmits the file manifest and streams thumbnail packets in batches of 3 over WebRTC.
+   * **Phase B (Selective Sync):** Receiver inspects the tree or media gallery, checks/unchecks items, and sends back a `manifest-ack` containing only the desired file IDs.
+4. **Smart Backpressure Flow Control:** Streams files in 64 KiB chunks with high (8 MB) and low (1 MB) watermark buffer monitoring (`bufferedAmountLowThreshold`) to prevent memory spikes.
+5. **Direct-to-Disk Streaming (Chromium):** Uses the **File System Access API** (`showDirectoryPicker` + `FileSystemWritableFileStream`) to write incoming bytes straight to disk, keeping memory consumption flat (~10–20 MB).
+6. **Universal Fallback (Safari / Firefox / Mobile):** Assembles incoming chunks into an in-browser `.zip` archive via `JSZip`, triggering a single unified download that protects against mobile popup spam.
+7. **Reactive Transfer UI:** Live per-file progress badges (`Pending`, `Downloading...`, `Received ✅`), overall byte counters, and a clean reset flow that requires no page refresh.
 
 ---
 
@@ -49,16 +61,21 @@ The architecture separates the **Control Plane (Signaling)** from the **Data Pla
 graph TB
     subgraph SENDER["🖥️ Sender Browser (Peer A)"]
         FileSelect["Recursive File & Folder Reader<br/>(showDirectoryPicker + webkitGetAsEntry)"]
+        MediaGen["Client-Side Media Extractor<br/>(Canvas Image & Video Frame Capture)"]
         RTC_A["RTCPeerConnection (DataChannel)"]
         Signaling_A["Signaling Client (WebSocket)"]
         WakeLock_A["Screen Wake Lock API"]
+        FileSelect --> MediaGen
+        MediaGen --> RTC_A
     end
 
     subgraph SERVER["☁️ Node.js Signaling & Static Server"]
         HTTP["Static HTTP Host & Local Vendor Assets<br/>(index.html, JS, CSS, /vendor/*)"]
         WSS["WebSocket Server"]
         RoomMgr["RoomManager (In-Memory Map)"]
+        VendorBundle["Local Bundler (bundleQrcode.js)<br/>Zero CDN Dependencies"]
         WSS --- RoomMgr
+        HTTP --- VendorBundle
     end
 
     subgraph STUN["🌐 Google Public STUN Servers"]
@@ -68,9 +85,11 @@ graph TB
     subgraph RECEIVER["📱 Receiver Browser (Peer B)"]
         Signaling_B["Signaling Client (WebSocket)"]
         RTC_B["RTCPeerConnection (DataChannel)"]
-        FileTree["Selective Sync Checklist<br/>(Folder & File Checkboxes)"]
+        DualView["Dual-View Selector<br/>(📋 All Files Tree | 🖼️ Media Gallery)"]
         DiskWriter["File System Access API (Chromium)<br/>or JSZip Bundle (Safari/Mobile)"]
         WakeLock_B["Screen Wake Lock API"]
+        RTC_B --> DualView
+        DualView --> DiskWriter
     end
 
     %% Signaling flow
@@ -82,20 +101,15 @@ graph TB
     RTC_B -.->|1. Discover Public IP & Port| StunSrv
 
     %% Direct P2P flow
-    RTC_A <==>|2. Direct Encrypted P2P DataChannel: DTLS & SCTP<br/>Manifest Exchange + 64 KB Chunk Streaming| RTC_B
-
-    %% Internal module links
-    FileSelect --> RTC_A
-    RTC_B --> FileTree
-    FileTree --> DiskWriter
+    RTC_A <==>|2. Direct Encrypted P2P DataChannel: DTLS & SCTP<br/>Manifest & Thumbnail Stream + 64 KB Chunk Streaming| RTC_B
 
     classDef control fill:#1d2027,stroke:#ff9d4d,stroke-width:2px,color:#eceae4;
     classDef data fill:#15171c,stroke:#5eead4,stroke-width:2px,color:#eceae4;
     classDef server fill:#262a33,stroke:#8b8f99,stroke-width:1px,color:#eceae4;
 
     class Signaling_A,Signaling_B,WSS,RoomMgr,StunSrv control;
-    class FileSelect,RTC_A,RTC_B,DiskWriter,FileTree data;
-    class HTTP server;
+    class FileSelect,MediaGen,RTC_A,RTC_B,DiskWriter,DualView data;
+    class HTTP,VendorBundle server;
 ```
 
 ---
@@ -112,14 +126,15 @@ sequenceDiagram
     %% PHASE 1: PAIRING
     rect rgb(30, 35, 45)
     Note over Alice,Bob: Phase 1: Room Creation & Pairing (QR / Code / Hash URL)
-    Alice->>Alice: Selects files or folders (e.g. project/ with subfolders)
+    Alice->>Alice: Selects files or folders (e.g. project/ with photos, videos, code)
+    Alice->>Alice: Generates client-side thumbnails for images & videos
     Alice->>Server: WS: {"type": "create-room"}
-    Server->>Alice: WS: {"type": "room-created", "code": "KQ34EE"}
-    Alice->>Alice: Renders QR Code, Room Code & Shareable Link (#KQ34EE)
-    Bob->>Bob: Opens link relay.app/#KQ34EE or scans QR code
-    Bob->>Server: WS: {"type": "join-room", "code": "KQ34EE"}
+    Server->>Alice: WS: {"type": "room-created", "code": "C6ERRX"}
+    Alice->>Alice: Renders QR Code, Room Code (C6E RRX) & Shareable Link (#C6ERRX)
+    Bob->>Bob: Opens link relay.app/#C6ERRX, scans QR, or enters code
+    Bob->>Server: WS: {"type": "join-room", "code": "C6ERRX"}
     Server->>Alice: WS: {"type": "receiver-joined"}
-    Server->>Bob: WS: {"type": "room-joined", "code": "KQ34EE"}
+    Server->>Bob: WS: {"type": "room-joined", "code": "C6ERRX"}
     end
 
     %% PHASE 2: SIGNALING
@@ -142,14 +157,18 @@ sequenceDiagram
     end
     end
 
-    %% PHASE 3: MANIFEST & SELECTIVE SYNC
+    %% PHASE 3: MANIFEST, THUMBNAILS & SELECTIVE SYNC
     rect rgb(20, 30, 35)
-    Note over Alice,Bob: Phase 3: Manifest Exchange & Selective Sync
+    Note over Alice,Bob: Phase 3: Manifest Exchange, Thumbnail Streaming & Selective Sync
     Alice->>Bob: 🔐 Direct DTLS 1.3 & SCTP Handshake (Peer-to-Peer)
     Note over Alice,Bob: ✅ RTCDataChannel OPEN
     Alice->>Bob: DataChannel: {"type": "manifest", "files": [...], "totalSize": 104857600}
-    Bob->>Bob: Displays interactive folder/file tree with checkboxes
-    Bob->>Bob: User checks/unchecks items & selects save destination
+    loop Streaming Thumbnail Packets
+        Alice->>Bob: DataChannel: {"type": "thumbs", "items": [{id: 0, thumb: "..."}, ...]}
+        Bob->>Bob: Live populates Media Gallery cards with thumbnails
+    end
+    Bob->>Bob: Receiver switches between "All Files" and "Media" tabs
+    Bob->>Bob: User toggles folder-level or item checkboxes & clicks "Download Selected"
     Bob->>Alice: DataChannel: {"type": "manifest-ack", "accepted": true, "selectedIds": [0, 2]}
     end
 
@@ -157,7 +176,7 @@ sequenceDiagram
     rect rgb(25, 35, 40)
     Note over Alice,Bob: Phase 4: Sequential Chunk Streaming with Backpressure
     loop For Each Selected File
-        Alice->>Bob: DataChannel: {"type": "file-start", "id": 0, "path": "src/app.js", "size": ...}
+        Alice->>Bob: DataChannel: {"type": "file-start", "id": 0, "path": "photos/vacation.mp4", "size": ...}
         Bob->>Alice: DataChannel: {"type": "file-ready", "id": 0}
         loop Chunks with Flow Control
             Alice->>Alice: file.slice(offset, 64KB)
@@ -179,28 +198,29 @@ sequenceDiagram
 ```
 webrtc-relay/
 ├── server/
-│   ├── server.js            # HTTP host + WebSocket signaling relay + local vendor assets
-│   ├── package.json         # Node.js dependencies (ws, qrcode, jsqr, jszip)
+│   ├── server.js            # HTTP host + WebSocket signaling relay + local /vendor/ routes
+│   ├── package.json         # Node.js dependencies (ws, qrcode, jsqr, jszip) & postinstall bundler
 │   └── lib/
-│       ├── roomManager.js   # Ephemeral room manager & cleanup routines
-│       └── codeGenerator.js # Crypto-safe 6-character room codes
+│       ├── roomManager.js   # Ephemeral room manager & connection cleanup routines
+│       ├── codeGenerator.js # Crypto-safe 6-character room codes
+│       └── bundleQrcode.js  # Standalone zero-dependency UMD bundler for qrcode
 └── client/
-    ├── index.html           # UI layout with responsive trees & first-party vendor scripts
+    ├── index.html           # UI layout with dual-view tabs & first-party vendor scripts
     ├── css/
-    │   └── style.css        # Responsive dark-mode styling (mobile + laptop)
+    │   └── style.css        # Responsive dark-mode styling (2-column mobile media grid)
     └── js/
         ├── app.js           # Main coordinator & lifecycle orchestrator
         ├── signaling.js     # WebSocket signaling client wrapper
         ├── webrtc.js        # RTCPeerConnection & DataChannel wrapper
         ├── fileScanner.js   # Recursive folder scanner (showDirectoryPicker + webkitGetAsEntry)
-        ├── fileTree.js      # Hierarchical tree builder & sync checkboxes
-        ├── fileTreeGroups.js# Groups images by folder path for the Gallery view
-        ├── imageUtils.js    # Image detection & compact thumbnail generator
-        ├── fileTransfer.js  # Manifest protocol, chunk streaming & writers
+        ├── fileTree.js      # Hierarchical tree builder & Media Gallery dual-view
+        ├── fileTreeGroups.js# Groups media files by parent folder path
+        ├── imageUtils.js    # Image & video detection, canvas resizing & video frame capture
+        ├── fileTransfer.js  # Two-phase manifest protocol, thumbnail streaming & writers
         ├── wakeLock.js      # Screen Wake Lock API manager
-        ├── qr.js            # QR rendering & camera scanner
-        ├── codeUtils.js     # Code formatting & sanitization helpers
-        └── ui.js            # DOM bindings & progress formatters
+        ├── qr.js            # Dynamic QR rendering & camera scanner
+        ├── codeUtils.js     # Code formatting, URL parsing & whitespace sanitization
+        └── ui.js            # DOM bindings & live progress formatters
 ```
 
 ---
@@ -208,7 +228,7 @@ webrtc-relay/
 ## 🚀 7. Quick Start & Setup
 
 ### Prerequisites
-* [Node.js](https://nodejs.org/) (v16+ recommended)
+* [Node.js](https://nodejs.org/) (v18+ recommended)
 
 ### 1. Install & Run Locally
 ```bash
@@ -216,6 +236,7 @@ webrtc-relay/
 cd server
 
 # Install dependencies (ws, qrcode, jsqr, jszip)
+# The postinstall script automatically bundles qrcode into /vendor/
 npm install
 
 # Start the server
@@ -223,11 +244,11 @@ npm start
 # -> Signaling + static server listening on http://localhost:3000
 ```
 
-### 2. Testing across different devices
+### 2. Testing Across Local Devices (LAN / Wi-Fi)
 1. Find your host computer's Local IP address (e.g. `192.168.1.50`).
-2. Open `http://localhost:3000` on your computer.
-3. Open `http://192.168.1.50:3000` on your mobile device or second computer.
-4. **Camera / QR scanning note:** Modern mobile browsers require **HTTPS** (or `localhost`) to grant camera access. For scanning across multiple physical devices over WAN/Wi-Fi, run a TLS reverse proxy (e.g. ngrok, Caddy, or Cloudflare Tunnel):
+2. Open `http://localhost:3000` on your host computer.
+3. Open `http://192.168.1.50:3000` on your smartphone, tablet, or secondary computer.
+4. **QR Camera Scanning Note:** Modern mobile browsers require **HTTPS** (or `localhost`) to grant camera access. For testing camera QR scanning across devices over Wi-Fi/WAN, run a secure TLS tunnel:
    ```bash
    npx ngrok http 3000
    ```
@@ -236,13 +257,17 @@ npm start
 
 ## 💡 8. Browser Compatibility & Technical Highlights
 
-| Feature | Chromium (Chrome, Edge, Brave, Opera) | Firefox / Safari / Mobile |
+| Feature | Chromium (Chrome, Edge, Brave, Opera) | Firefox / Safari / Mobile (iOS & Android) |
 | :--- | :--- | :--- |
-| **Multi-File & Folder Transfer** | Full Support (`showDirectoryPicker` + drag-and-drop) | Full Support (`webkitGetAsEntry` + folder input) |
+| **Multi-File & Folder Transfer** | Full Support (`showDirectoryPicker` + drag-and-drop) | Full Support (`webkitGetAsEntry` + directory input) |
 | **Max Transfer Size** | **Unlimited** (flat ~10–20 MB memory footprint) | Bounded by device memory (~1–2 GB) |
 | **Folder Save Destination** | `showDirectoryPicker()` (saves directly into disk folder) | Bundles into single `.zip` file via `JSZip` |
-| **Selective Sync Tree** | Interactive folder-level and individual file checkboxes | Interactive folder-level and individual file checkboxes |
+| **Media Gallery & Video Previews** | Full Support (canvas downscaling + video frame capture) | Full Support (canvas downscaling + video frame capture) |
+| **Mobile Media Grid** | Responsive 2-column grid (`repeat(2, 1fr)`) | Responsive 2-column grid (`repeat(2, 1fr)`) |
+| **P2P Thumbnail Streaming** | Progressive streaming (<32 KB per packet over SCTP) | Progressive streaming (<32 KB per packet over SCTP) |
+| **Selective Sync Controls** | Folder-level checkboxes & individual item checkboxes | Folder-level checkboxes & individual item checkboxes |
+| **Zero-CDN Architecture** | Served locally from `/vendor/` (Zero Tracking Blocks) | Served locally from `/vendor/` (Zero Tracking Blocks) |
+| **Code Input Sanitization** | Auto-strips spaces & URLs (handles `C6E RRX` / `#CODE`) | Auto-strips spaces & URLs (handles `C6E RRX` / `#CODE`) |
 | **Screen Wake Lock** | Native `navigator.wakeLock` supported | Native `navigator.wakeLock` supported |
 | **Data Encryption** | DTLS 1.2 / 1.3 (Mandatory WebRTC E2EE) | DTLS 1.2 / 1.3 (Mandatory WebRTC E2EE) |
-| **P2P Transport** | SCTP over DTLS (`RTCDataChannel`) | SCTP over DTLS (`RTCDataChannel`) |
-| **First-Party Assets** | Served locally via `/vendor/` (No CDN / No Tracking Blocks) | Served locally via `/vendor/` (No CDN / No Tracking Blocks) |
+| **Non-Reload State Reset** | "Start New Transfer" / "Receive More Files" without refresh | "Start New Transfer" / "Receive More Files" without refresh |
